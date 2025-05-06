@@ -2,12 +2,16 @@ package com.example.mutableDecimal;
 
 
 import java.math.BigDecimal;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.stream.Collectors;
 
 
 public class MutableDecimal implements Comparable<MutableDecimal> {
 
     private static final long HALF_LONG_MAX_VALUE = Long.MAX_VALUE / 2;
     private static final long HALF_LONG_MIN_VALUE = Long.MIN_VALUE / 2;
+    private static final int MAX_DIGITS = 18;
 
     public static final MutableDecimal ZERO = new MutableDecimal("0");
     private long intCompact;
@@ -27,6 +31,7 @@ public class MutableDecimal implements Comparable<MutableDecimal> {
 
     // reset to other numeral value
     public void reset(String val) {
+        validateStringInput(val);
         initializeReset();
         initializeByString(val);
     }
@@ -64,7 +69,54 @@ public class MutableDecimal implements Comparable<MutableDecimal> {
     }
 
     public MutableDecimal(String val) {
+        validateStringInput(val);
         initializeByString(val);
+    }
+
+    private void validateStringInput(String input){
+        if (input == null)
+            throw new NumberFormatException("No digits found.");
+        input = input.trim();
+        if (input.isEmpty())
+            throw new NumberFormatException("No digits found.");
+        StringBuilder sb = new StringBuilder("Invalid number. ");
+        char[] inputCharArray = input.toCharArray();
+        boolean hasDot = false;
+        boolean isInputValid = true;
+        List<Integer> invalidCharPositionList = new LinkedList<>();
+        List<Integer> multipleDotPositionList = new LinkedList<>();
+
+        for (int i=0; i < inputCharArray.length; i++){
+            if (i>0 && inputCharArray[i] == '-') {
+                sb.append("\ninvalid negative sign at index: ").append(i);
+                isInputValid = false;
+                continue;
+            }
+            if (!Character.isDigit(inputCharArray[i]) && inputCharArray[i] != '.'){
+                invalidCharPositionList.add(i);
+            }
+            if (inputCharArray[i] == '.'){
+                if (!hasDot) hasDot = true;
+                else multipleDotPositionList.add(i);
+            }
+        }
+
+        isInputValid &= invalidCharPositionList.isEmpty();
+        isInputValid &= multipleDotPositionList.isEmpty();
+        if (!isInputValid){
+            if (!invalidCharPositionList.isEmpty()){
+                sb.append("\ninvalid character at index: ").append(invalidCharPositionList.stream().map(String::valueOf).collect(Collectors.joining(", ")));
+            }
+
+            if (!multipleDotPositionList.isEmpty()){
+                sb.append("\nmultiple dot character at index: ").append(multipleDotPositionList.stream().map(String::valueOf).collect(Collectors.joining(", ")));
+            }
+            throw new NumberFormatException(sb.toString());
+        }
+
+//        String input validity check pass here
+//        18 digit string can fit in intCompact (Java long)
+        if (input.length() - (input.indexOf('-') > -1 ? 1 : 0) - (hasDot ? 1 : 0) > MAX_DIGITS) throw new NumberFormatException(String.format("Max length should not exceed %s. (actual: %s)", MAX_DIGITS, input.length()));
     }
 
     private void initializeByString(String val) {
