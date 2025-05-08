@@ -2,6 +2,7 @@ package com.example.mutableDecimal;
 
 
 import java.math.BigDecimal;
+import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -24,7 +25,7 @@ public class MutableDecimal implements Comparable<MutableDecimal> {
         initializeByIntAndScale(intCompact, scale);
     }
 
-    private void initializeReset(){
+    private void initializeReset() {
         stringCache = null;
         bigDecimalCache = null;
     }
@@ -41,6 +42,7 @@ public class MutableDecimal implements Comparable<MutableDecimal> {
         initializeReset();
         initializeByIntAndScale(intCompact, scale);
     }
+
     private void initializeByIntAndScale(long intCompact, int scale) {
         // adjust to smallest scale
         while (scale > 0) {
@@ -60,9 +62,10 @@ public class MutableDecimal implements Comparable<MutableDecimal> {
         return inputString.substring(0, trailingZeroStartIdx + 1);
     }
 
-    private String removeLeadingZero(String inputString){
+    private String removeLeadingZero(String inputString) {
+        if ("0".equals(inputString)) return inputString;
         int leadingZeroIdx = 0;
-        for (; leadingZeroIdx < inputString.length(); leadingZeroIdx++){
+        for (; leadingZeroIdx < inputString.length(); leadingZeroIdx++) {
             if (inputString.charAt(leadingZeroIdx) != '0') break;
         }
         return inputString.substring(leadingZeroIdx);
@@ -73,7 +76,7 @@ public class MutableDecimal implements Comparable<MutableDecimal> {
         initializeByString(val);
     }
 
-    private void validateStringInput(String input){
+    private void validateStringInput(String input) {
         if (input == null)
             throw new NumberFormatException("No digits found.");
         input = input.trim();
@@ -86,16 +89,16 @@ public class MutableDecimal implements Comparable<MutableDecimal> {
         List<Integer> invalidCharPositionList = new LinkedList<>();
         List<Integer> multipleDotPositionList = new LinkedList<>();
 
-        for (int i=0; i < inputCharArray.length; i++){
-            if (i>0 && inputCharArray[i] == '-') {
+        for (int i = 0; i < inputCharArray.length; i++) {
+            if (i > 0 && inputCharArray[i] == '-') {
                 sb.append("\ninvalid negative sign at index: ").append(i);
                 isInputValid = false;
                 continue;
             }
-            if (!Character.isDigit(inputCharArray[i]) && inputCharArray[i] != '.'){
+            if (!Character.isDigit(inputCharArray[i]) && inputCharArray[i] != '.') {
                 invalidCharPositionList.add(i);
             }
-            if (inputCharArray[i] == '.'){
+            if (inputCharArray[i] == '.') {
                 if (!hasDot) hasDot = true;
                 else multipleDotPositionList.add(i);
             }
@@ -103,35 +106,54 @@ public class MutableDecimal implements Comparable<MutableDecimal> {
 
         isInputValid &= invalidCharPositionList.isEmpty();
         isInputValid &= multipleDotPositionList.isEmpty();
-        if (!isInputValid){
-            if (!invalidCharPositionList.isEmpty()){
+        if (!isInputValid) {
+            if (!invalidCharPositionList.isEmpty()) {
                 sb.append("\ninvalid character at index: ").append(invalidCharPositionList.stream().map(String::valueOf).collect(Collectors.joining(", ")));
             }
 
-            if (!multipleDotPositionList.isEmpty()){
-                sb.append("\nmultiple dot character at index: ").append(multipleDotPositionList.stream().map(String::valueOf).collect(Collectors.joining(", ")));
+            if (!multipleDotPositionList.isEmpty()) {
+                sb.append("\nmultiple decimal point at index: ").append(multipleDotPositionList.stream().map(String::valueOf).collect(Collectors.joining(", ")));
             }
             throw new NumberFormatException(sb.toString());
         }
 
 //        String input validity check pass here
 //        18 digit string can fit in intCompact (Java long)
-        if (input.length() - (input.indexOf('-') > -1 ? 1 : 0) - (hasDot ? 1 : 0) > MAX_DIGITS) throw new NumberFormatException(String.format("Max length should not exceed %s. (actual: %s)", MAX_DIGITS, input.length()));
+        if (input.length() - (input.indexOf('-') > -1 ? 1 : 0) - (hasDot ? 1 : 0) > MAX_DIGITS)
+            throw new NumberFormatException(String.format("Max length should not exceed %s. (actual: %s)", MAX_DIGITS, input.length()));
+    }
+
+    private long parseLong(String val) {
+        long result = 0;
+        var charArray = val.toCharArray();
+        boolean isNegative = false;
+        for (int i = 0; i < charArray.length; i++) {
+            if (charArray[i] == '-') {
+                isNegative = true;
+                continue;
+            } else if (charArray[i] == '+') {
+                continue;
+            }
+            int digit = Character.digit(charArray[i], 10);
+            result = result * 10 + digit;
+        }
+        return isNegative ? -result : result;
     }
 
     private void initializeByString(String val) {
         String[] numSplitByDot = val.split("\\.");
         switch (numSplitByDot.length) {
             case 1: {
+                var integerPart = this.removeLeadingZero(numSplitByDot[0]);
                 this.scale = 0;
-                this.intCompact = Long.parseLong(val);
+                this.intCompact = parseLong(integerPart);
                 break;
             }
             case 2: {
-                var integralPart = this.removeLeadingZero(numSplitByDot[0]);
-                var decimalPart = this.removeTrailingZero(numSplitByDot[1]);
-                this.intCompact = Long.parseLong(integralPart + decimalPart);
-                this.scale = decimalPart.length();
+                var integerPart = this.removeLeadingZero(numSplitByDot[0]);
+                var fractionalPart = this.removeTrailingZero(numSplitByDot[1]);
+                this.intCompact = parseLong(integerPart + fractionalPart);
+                this.scale = fractionalPart.length();
                 break;
             }
             default: {
