@@ -174,14 +174,12 @@ public class MutableDecimal implements Comparable<MutableDecimal> {
         if (scale + divisorScale > dividendScale) {
             int newScale = scale + divisorScale;
             int raise = newScale - dividendScale;
-            long xs = dividend;
-            xs = (long) (xs * Math.pow(10, raise));
+            long xs = Math.multiplyExact(dividend, (long)Math.pow(10, raise));
             return divideAndRound(xs, divisor, scale, scale);
         } else {
             int newScale = dividendScale - scale;
             int raise = newScale - divisorScale;
-            long ys = divisor;
-            ys = (long) (ys * Math.pow(10, raise));
+            long ys = Math.multiplyExact(divisor, (long)Math.pow(10, raise));
             return divideAndRound(dividend, ys, scale, scale);
         }
     }
@@ -283,13 +281,7 @@ public class MutableDecimal implements Comparable<MutableDecimal> {
     }
 
     private static long multiply(long x, long y) {
-        long product = x * y;
-        long ax = Math.abs(x);
-        long ay = Math.abs(y);
-        if (((ax | ay) >>> 31 == 0) || (y == 0) || (product / y == x)) {
-            return product;
-        }
-        throw new UnsupportedOperationException("overflow");
+        return Math.multiplyExact(x, y);
     }
 
     public MutableDecimal add(MutableDecimal augend) {
@@ -321,11 +313,7 @@ public class MutableDecimal implements Comparable<MutableDecimal> {
     }
 
     private static long add(long xs, long ys) {
-        long sum = xs + ys;
-        if ((((sum ^ xs) & (sum ^ ys))) >= 0L) { // not overflowed
-            return sum;
-        }
-        throw new UnsupportedOperationException("overflowed");
+        return Math.addExact(xs, ys);
     }
 
     @Override
